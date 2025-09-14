@@ -1,0 +1,20 @@
+[
+    {
+      "name": "Kolkata Fire Station 1",
+      "latitude": 22.5726,
+      "longitude": 88.3639,
+      "contact": "033-2222-1001"
+    },
+    {
+      "name": "Kolkata Rescue Team HQ",
+      "latitude": 22.5720,
+      "longitude": 88.3645,
+      "contact": "033-2222-1002"
+    },
+    {
+      "name": "Salt Lake Disaster Unit",
+      "latitude": 22.5800,
+      "longitude": 88.4370,
+      "contact": "033-2222-1003"
+    }
+  ]

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis - Disaster Upload</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { font-family: 'Lato', sans-serif; background-color: #F3F4F6; }
+        h1,h2,h3,h4,h5,h6,.font-heading { font-family: 'Poppins', sans-serif; color: #1F2937; }
+        .main-card { background-color: #fff; border: 1px solid #E5E7EB; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07); transition: all 0.5s cubic-bezier(0.4,0,0.2,1); }
+        .accent-button { background-color: #DC2626; color: white; transition: background-color 0.3s, transform 0.2s; }
+        .accent-button:hover { background-color: #B91C1C; transform: translateY(-1px); }
+        .accent-button:disabled { background-color: #FCA5A5; cursor: not-allowed; }
+        .dropdown:hover .dropdown-menu { display: block; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #DC2626; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .leaflet-container { height: 300px; width: 100%; border-radius: 0.5rem; }
+        .search-container { position: relative; z-index: 1000; }
+        .search-input { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; }
+        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-top: none; border-radius: 0 0 0.5rem 0.5rem; max-height: 200px; overflow-y: auto; z-index: 1001; }
+        .search-result-item { padding: 0.75rem; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+        .search-result-item:hover { background-color: #f9fafb; }
+    </style>
+</head>
+<body class="text-gray-700">
+
+    <!-- Header -->
+    <header class="bg-white/80 shadow-md backdrop-blur-md sticky top-0 z-50 border-b border-gray-200">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-6">
+                <a href="/" class="text-2xl font-bold tracking-wider text-gray-900">AEGIS</a>
+                <div class="hidden lg:flex items-center space-x-6 text-gray-600 font-semibold">
+                    <div class="relative dropdown">
+                        <button class="flex items-center hover:text-red-600 transition-colors">
+                            Solutions <i data-lucide="chevron-down" class="w-4 h-4 ml-1"></i>
+                        </button>
+                        <div class="dropdown-menu absolute hidden bg-white shadow-lg rounded-lg mt-4 py-2 w-52 border border-gray-100">
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-red-600">Real-Time Monitoring</a>
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-red-600">Predictive Modeling</a>
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-red-600">Team Coordination</a>
+                        </div>
+                    </div>
+                    <a href="#" class="hover:text-red-600 transition-colors">Resources</a>
+                    <a href="#" class="hover:text-red-600 transition-colors">Company</a>
+                </div>
+            </div>
+            <div class="flex items-center space-x-5">
+                 <a href="#" class="hidden md:block font-semibold text-gray-600 hover:text-red-600">Support</a>
+                 <a href="#" class="hidden md:block font-semibold text-gray-600 hover:text-red-600">Contact</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-6 flex flex-col items-center justify-center" style="min-height: calc(100vh - 80px);">
+        <div id="main-card" class="main-card w-full max-w-2xl p-8">
+            <div id="upload-view">
+                <div class="text-center">
+                    <h1 class="text-3xl font-bold mb-2">Disaster Scene Upload</h1>
+                    <p class="text-gray-500 mb-8">Upload an image to let our AI analyze the disaster type and severity.</p>
+                </div>
+                <form id="upload-form" action="/api/v1/disaster/predict" method="post" enctype="multipart/form-data">
+                    <input type="file" name="file" id="file-input" accept="image/*" class="hidden">
+                    <label for="file-input" id="file-label" class="flex flex-col items-center justify-center bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-red-400 hover:bg-red-50 transition-colors w-full mb-6">
+                        <img id="upload-preview" src="#" class="hidden max-h-40 rounded-md mb-4" alt="Image Preview" />
+                        <div id="upload-placeholder" class="flex flex-col items-center">
+                            <i data-lucide="upload-cloud" class="w-16 h-16 text-gray-400 mb-2"></i>
+                            <p class="text-gray-600 font-medium">Drag and drop your image here</p>
+                            <p class="text-gray-400 text-sm mt-1">or click to browse files</p>
+                            <p class="text-gray-400 text-xs mt-2">Supported formats: JPG, PNG, WEBP</p>
+                        </div>
+                    </label>
+                    <button type="submit" id="analyze-btn" class="accent-button w-full py-3 px-4 rounded-lg font-semibold disabled:opacity-50" disabled>
+                        Analyze Disaster Scene
+                    </button>
+                </form>
+                
+                <!-- Location Selection -->
+                <div class="mt-8">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Select Disaster Location</h3>
+                    <div class="search-container mb-4">
+                        <input type="text" id="location-search" class="search-input" placeholder="Search for a location..." />
+                        <div id="search-results" class="search-results hidden"></div>
+                    </div>
+                    <div id="map" class="border border-gray-300 rounded-lg"></div>
+                    <div id="selected-location" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg hidden">
+                        <h4 class="font-semibold text-blue-800 mb-2">Selected Location:</h4>
+                        <p id="location-address" class="text-blue-700"></p>
+                        <p id="location-coordinates" class="text-sm text-blue-600 mt-1"></p>
+                    </div>
+                    <input type="hidden" id="latitude" name="latitude">
+                    <input type="hidden" id="longitude" name="longitude">
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-50 border-t border-gray-200 py-8">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-500 text-sm">&copy; 2023 Aegis Disaster Management. All rights reserved.</p>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="#" class="text-gray-500 hover:text-red-600 text-sm">Privacy Policy</a>
+                    <a href="#" class="text-gray-500 hover:text-red-600 text-sm">Terms of Service</a>
+                    <a href="#" class="text-gray-500 hover:text-red-600 text-sm">Contact</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+        let map, marker, selectedLocation=null, searchTimeout, uploadedFile=null;
+
+        function initMap() {
+            map = L.map('map').setView([20.5937,78.9629],5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap contributors' }).addTo(map);
+            map.on('click', e => {
+                console.log('🗺️ Map clicked at:', e.latlng);
+                setLocation(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        function setLocation(lat,lng){
+            console.log('🗺️ Setting location:', lat, lng);
+            if(marker) map.removeLayer(marker);
+            marker = L.marker([lat,lng]).addTo(map);
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lng;
+            reverseGeocode(lat,lng);
+            selectedLocation = {lat,lng};
+            console.log('✅ Location set successfully:', selectedLocation);
+            document.getElementById('selected-location').classList.remove('hidden');
+        }
+
+        async function reverseGeocode(lat,lng){
+            try{
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                const data = await res.json();
+                document.getElementById('location-address').textContent = data.display_name || 'Location selected';
+                document.getElementById('location-coordinates').textContent = `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            } catch(err){ console.error(err); }
+        }
+
+        async function searchLocation(query){
+            if(query.length<3){ document.getElementById('search-results').classList.add('hidden'); return; }
+            try{
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+                const results = await res.json();
+                const container = document.getElementById('search-results'); container.innerHTML='';
+                if(results.length===0) container.innerHTML='<div class="search-result-item text-gray-500">No locations found</div>';
+                else results.forEach(r=>{
+                    const item=document.createElement('div'); item.className='search-result-item'; item.textContent=r.display_name;
+                    item.addEventListener('click',()=>{ 
+                        const lat=parseFloat(r.lat), lng=parseFloat(r.lon); 
+                        console.log('🔍 Search result clicked:', r.display_name, 'Lat:', lat, 'Lng:', lng);
+                        setLocation(lat,lng); 
+                        map.setView([lat,lng],15); 
+                        container.classList.add('hidden'); 
+                        document.getElementById('location-search').value=''; 
+                    });
+                    container.appendChild(item);
+                });
+                container.classList.remove('hidden');
+            } catch(err){ console.error(err); }
+        }
+
+        document.addEventListener('DOMContentLoaded',()=>{
+            initMap();
+            const searchInput=document.getElementById('location-search');
+            searchInput.addEventListener('input',function(){ clearTimeout(searchTimeout); searchTimeout=setTimeout(()=>searchLocation(this.value),300); });
+            document.addEventListener('click',e=>{ if(!e.target.closest('.search-container')) document.getElementById('search-results').classList.add('hidden'); });
+        });
+
+        // File preview
+        const fileInput=document.getElementById('file-input'), uploadPreview=document.getElementById('upload-preview'), uploadPlaceholder=document.getElementById('upload-placeholder'), analyzeBtn=document.getElementById('analyze-btn'), uploadForm=document.getElementById('upload-form');
+        fileInput.addEventListener('change',function(){
+            if(this.files&&this.files[0]){
+                uploadedFile=this.files[0]; const reader=new FileReader();
+                reader.onload=function(e){ uploadPreview.src=e.target.result; uploadPreview.classList.remove('hidden'); uploadPlaceholder.classList.add('hidden'); analyzeBtn.disabled=false; }
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+
+        uploadForm.addEventListener('submit', function(e){
+            e.preventDefault(); if(!uploadedFile) return;
+            analyzeBtn.disabled=true; analyzeBtn.innerHTML='<div class="loader mx-auto"></div>';
+            const formData=new FormData(); formData.append('file', uploadedFile);
+            
+            console.log('🌍 Selected location before sending:', selectedLocation);
+            if(selectedLocation) { 
+                formData.append('latitude', selectedLocation.lat); 
+                formData.append('longitude', selectedLocation.lng);
+                console.log('📍 Sending location - Lat:', selectedLocation.lat, 'Lng:', selectedLocation.lng);
+            } else {
+                console.log('❌ No location selected!');
+            }
+            
+            // Debug: Log all form data
+            console.log('📤 FormData contents:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key, value);
+            }
+            
+            fetch('/api/v1/disaster/predict',{method:'POST',body:formData})
+            .then(res=>res.ok?res.json():Promise.reject(`Status ${res.status}`))
+            .then(data=>displayResults(data))
+            .catch(err=>{ console.error(err); alert(`Error: ${err}`); analyzeBtn.disabled=false; analyzeBtn.innerHTML='Analyze Disaster Scene'; });
+        });
+
+        function displayResults(data){
+            const uploadView=document.getElementById('upload-view');
+            uploadView.innerHTML=`
+            <div id="results-view" class="w-full">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Analysis Results</h2>
+                    <button id="back-btn" class="text-gray-600 hover:text-red-600 flex items-center"><i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back</button>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">Uploaded Image</h3>
+                        <div class="border border-gray-200 rounded-lg p-2 bg-gray-50">
+                            <img src="${uploadPreview.src}" class="max-h-60 mx-auto rounded" />
+                        </div>
+                    </div>
+                    <div>
+                        <div class="space-y-6">
+                            <div><h3 class="text-lg font-semibold mb-2">Disaster Type</h3><p class="text-2xl font-bold text-red-600">${data.disaster_type}</p></div>
+                            <div><h3 class="text-lg font-semibold mb-2">Severity</h3><div class="flex items-center"><span class="text-xl font-bold mr-2">${data.severity_category}</span><span class="text-gray-500">(Level ${data.disaster_level}/10)</span></div></div>
+                            <div><h3 class="text-lg font-semibold mb-2">Confidence</h3>
+                                <div class="w-full bg-gray-200 rounded-full h-4 mb-1">
+                                    <div class="bg-green-500 h-4 rounded-full" style="width: ${data.confidence*100}%"></div>
+                                </div>
+                                <div class="text-right text-sm text-gray-600">${(data.confidence*100).toFixed(1)}%</div>
+                            </div>
+                            <div class="mt-4 space-y-3">
+                                <button id="next-btn" class="accent-button py-2 px-4 rounded-lg font-semibold flex items-center justify-center w-full">Show Rescue Team Details <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i></button>
+                                <button id="route-btn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center w-full disabled:opacity-50" ${selectedLocation?'':'disabled'}>
+                                    Get Rescue Route <i data-lucide="map-pin" class="w-4 h-4 ml-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            lucide.createIcons();
+            document.getElementById('back-btn').addEventListener('click',()=>location.reload());
+            document.getElementById('next-btn').addEventListener('click',()=>showRescueTeamDetails(data));
+            document.getElementById('route-btn').addEventListener('click',()=>getRescueRoute(data));
+        }
+
+        function showRescueTeamDetails(data){
+            const overlay=document.createElement('div'); overlay.className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'; overlay.id='rescue-modal'; document.body.appendChild(overlay);
+            const modal=document.createElement('div'); modal.className='bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4';
+            const teamSize=data.rescue_team_size||'Not available';
+            const teamDetails=data.rescue_team_details||'Not available';
+            const equipment=data.equipment||[];
+            const estimatedTime=data.estimated_response_time||'Not available';
+            const priorityActions=data.priority_actions||[];
+            modal.innerHTML=`
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Rescue Team Details</h2>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-red-600 text-2xl">×</button>
+            </div>
+            <div class="space-y-6">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-blue-800 mb-2">Recommended Team Size</h3>
+                    <p class="text-3xl font-bold text-blue-600">${teamSize} ${teamSize!=='Not available'?'personnel':''}</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Team Composition</h3>
+                    <p class="text-gray-700">${teamDetails}</p>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-green-800 mb-2">Required Equipment</h3>
+                    <ul class="grid grid-cols-2 gap-2 text-sm text-green-700">${equipment.map(i=>`<li class="flex items-center"><span class="mr-2">•</span>${i}</li>`).join('')}</ul>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-yellow-800 mb-2">Estimated Response Time</h3>
+                    <p class="text-xl font-bold text-yellow-600">${estimatedTime}</p>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-red-800 mb-2">Priority Actions</h3>
+                    <ul class="space-y-2 text-sm text-red-700">${priorityActions.map(a=>`<li class="flex items-start"><span class="mr-2 mt-1">•</span>${a}</li>`).join('')}</ul>
+                </div>
+                <div class="bg-gray-100 border border-gray-300 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Emergency Contacts</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><p class="font-medium">Emergency Services</p><p class="text-gray-600">911 / 112</p></div>
+                        <div><p class="font-medium">Disaster Management</p><p class="text-gray-600">+1-800-DISASTER</p></div>
+                    </div>
+                </div>
+            </div>`;
+            overlay.appendChild(modal);
+            document.getElementById('close-modal-btn').addEventListener('click',()=>document.body.removeChild(overlay));
+            overlay.addEventListener('click',e=>{ if(e.target===overlay) document.body.removeChild(overlay); });
+            document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&document.getElementById('rescue-modal')) document.body.removeChild(overlay); });
+        }
+
+        function getRescueRoute(data){
+            console.log('Route data received:', data);
+            
+            // Check if we have location data
+            if (!selectedLocation) {
+                alert('Please select a disaster location first.');
+                return;
+            }
+            
+            // Check if we have rescue center data
+            if (!data.nearest_rescue_center) {
+                alert('No rescue center found near the selected location.');
+                return;
+            }
+            
+            // Create route data with fallbacks
+            const routeData = {
+                distance: data.route_info?.distance || 'Calculating...',
+                estimated_time: data.route_info?.estimated_time || 'Calculating...',
+                instructions: data.route_info?.instructions || ['Route instructions will be provided by the rescue team.'],
+                route_coordinates: data.route_info?.route_coordinates || [],
+                team_lat: data.nearest_rescue_center.latitude,
+                team_lng: data.nearest_rescue_center.longitude,
+                team_location: data.nearest_rescue_center.name,
+                local_emergency: data.nearest_rescue_center.contact || '100',
+                disaster_management: '+1-800-DISASTER'
+            };
+            
+            console.log('Processed route data:', routeData);
+            showRescueRoute(routeData);
+        }
+
+
+        function showRescueRoute(routeData){
+            const overlay=document.createElement('div'); overlay.className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'; overlay.id='route-modal'; document.body.appendChild(overlay);
+            const modal=document.createElement('div'); modal.className='bg-white rounded-lg p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-4';
+            modal.innerHTML=`
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Rescue Team Route</h2>
+                <button id="close-route-modal-btn" class="text-gray-500 hover:text-red-600 text-2xl">×</button>
+            </div>
+            <div class="space-y-6">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Route Map</h3>
+                    <div id="route-map" class="h-96 border border-gray-300 rounded-lg"></div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-blue-800 mb-2">Route Information</h3>
+                        <p class="text-sm text-blue-700"><strong>Distance:</strong> ${routeData.distance||'Calculating...'}</p>
+                        <p class="text-sm text-blue-700"><strong>Estimated Time:</strong> ${routeData.estimated_time||'Calculating...'}</p>
+                        <p class="text-sm text-blue-700"><strong>Rescue Team Location:</strong> ${routeData.team_location||'Nearest station'}</p>
+                    </div>
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-green-800 mb-2">Instructions</h3>
+                        <ul class="space-y-2 text-sm text-green-700">${routeData.instructions?routeData.instructions.map(i=>`<li class="flex items-start"><span class="mr-2 mt-1">•</span>${i}</li>`).join(''):'Route instructions will be provided by the rescue team.'}</ul>
+                    </div>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-red-800 mb-2">Emergency Contacts</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><p class="font-medium">Local Emergency</p><p class="text-red-600">${routeData.local_emergency||'100'}</p></div>
+                        <div><p class="font-medium">Disaster Management</p><p class="text-red-600">${routeData.disaster_management||'+1-800-DISASTER'}</p></div>
+                    </div>
+                </div>
+            </div>`;
+            overlay.appendChild(modal);
+            setTimeout(()=>initRouteMap(routeData),100);
+            document.getElementById('close-route-modal-btn').addEventListener('click',()=>document.body.removeChild(overlay));
+            overlay.addEventListener('click',e=>{ if(e.target===overlay) document.body.removeChild(overlay); });
+        }
+
+        function initRouteMap(routeData){
+            const routeMap=L.map('route-map').setView([selectedLocation.lat,selectedLocation.lng],10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors'}).addTo(routeMap);
+            
+            // Add disaster location marker
+            L.marker([selectedLocation.lat,selectedLocation.lng]).addTo(routeMap).bindPopup('Disaster Location').openPopup();
+            
+            // Add rescue team location marker
+            if(routeData.team_lat && routeData.team_lng) {
+                L.marker([routeData.team_lat,routeData.team_lng]).addTo(routeMap).bindPopup('Rescue Team Location');
+            }
+            
+            // Draw route if coordinates are available
+            if(routeData.route_coordinates && routeData.route_coordinates.length > 0){
+                console.log('🗺️ Drawing route with', routeData.route_coordinates.length, 'coordinates');
+                const coords = routeData.route_coordinates.map(p => [p.lat, p.lng]);
+                const routeLine = L.polyline(coords, {
+                    color: '#DC2626', 
+                    weight: 4, 
+                    opacity: 0.8,
+                    smoothFactor: 1
+                }).addTo(routeMap);
+                
+                // Add route markers
+                const startMarker = L.marker([selectedLocation.lat, selectedLocation.lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<div style="background-color: #DC2626; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(routeMap).bindPopup('Disaster Location');
+                
+                const endMarker = L.marker([routeData.team_lat, routeData.team_lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<div style="background-color: #059669; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(routeMap).bindPopup('Rescue Team Location');
+                
+                // Fit map to show both locations and route
+                const group = new L.featureGroup();
+                group.addLayer(startMarker);
+                group.addLayer(endMarker);
+                group.addLayer(routeLine);
+                routeMap.fitBounds(group.getBounds().pad(0.1));
+            } else {
+                console.log('❌ No route coordinates available');
+                // If no route coordinates, just show both markers
+                if(routeData.team_lat && routeData.team_lng) {
+                    const group = new L.featureGroup();
+                    group.addLayer(L.marker([selectedLocation.lat,selectedLocation.lng]));
+                    group.addLayer(L.marker([routeData.team_lat,routeData.team_lng]));
+                    routeMap.fitBounds(group.getBounds().pad(0.1));
+                }
+            }
+        }
+    </script>
+</body>
+</html>

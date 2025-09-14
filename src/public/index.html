@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis - Disaster Classification</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Professional Fonts: Poppins for headings, Lato for body -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: #F3F4F6; /* gray-100 */
+        }
+        h1, h2, h3, h4, h5, h6, .font-heading {
+            font-family: 'Poppins', sans-serif;
+            color: #1F2937; /* gray-800 */
+        }
+        .main-card {
+            background-color: #FFFFFF;
+            border: 1px solid #E5E7EB; /* gray-200 */
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .accent-button {
+            background-color: #DC2626; /* red-600 */
+            color: white;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .accent-button:hover {
+            background-color: #B91C1C; /* red-700 */
+            transform: translateY(-1px);
+        }
+        .accent-button:disabled {
+            background-color: #FCA5A5; /* red-300 */
+            cursor: not-allowed;
+        }
+        .dropdown:hover .dropdown-menu {
+            display: block;
+        }
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #DC2626; /* Red */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-gray-700">
+
+    <!-- Header -->
+    <header class="bg-white/80 shadow-md backdrop-blur-md sticky top-0 z-50 border-b border-gray-200">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-6">
+                <a href="#" class="text-2xl font-bold tracking-wider text-gray-900">AEGIS</a>
+                <div class="hidden lg:flex items-center space-x-6 text-gray-600 font-semibold">
+                    <div class="relative dropdown">
+                        <button class="flex items-center hover:text-red-600 transition-colors">
+                            Solutions <i data-lucide="chevron-down" class="w-4 h-4 ml-1"></i>
+                        </button>
+                        <div class="dropdown-menu absolute hidden bg-white shadow-lg rounded-lg mt-4 py-2 w-52 border border-gray-100">
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-red-600">Real-Time Monitoring</a>
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-red-600">Predictive Modeling</a>
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-red-600">Team Coordination</a>
+                        </div>
+                    </div>
+                    <a href="#" class="hover:text-red-600 transition-colors">Resources</a>
+                    <a href="#" class="hover:text-red-600 transition-colors">Company</a>
+                </div>
+            </div>
+            <div class="flex items-center space-x-5">
+                 <a href="#" class="hidden md:block font-semibold text-gray-600 hover:text-red-600">Support</a>
+                 <a href="#" class="hidden md:block font-semibold text-gray-600 hover:text-red-600">Contact</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-6 flex flex-col items-center justify-center" style="min-height: calc(100vh - 80px);">
+        <div id="main-card" class="main-card w-full max-w-2xl p-8">
+            <!-- View 1: Upload Form -->
+            <div id="upload-view">
+                <div class="text-center">
+                    <h1 class="text-3xl font-bold mb-2">Disaster Scene Classification</h1>
+                    <p class="text-gray-500 mb-8">Upload an image to let our AI analyze the disaster type and severity.</p>
+                </div>
+                <form id="upload-form">
+                    <input type="file" name="file" id="file-input" accept="image/*" class="hidden">
+                    <label for="file-input" id="file-label" class="flex flex-col items-center justify-center bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-red-400 hover:bg-red-50 transition-colors w-full mb-6">
+                        <img id="upload-preview" src="#" class="hidden max-h-40 rounded-md mb-4" alt="Image Preview" />
+                        <div id="upload-prompt" class="text-center">
+                            <i data-lucide="upload-cloud" class="w-12 h-12 mx-auto text-gray-400"></i>
+                            <p id="file-name" class="mt-2 text-sm text-gray-600 font-semibold">Click to upload an image</p>
+                            <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                        </div>
+                    </label>
+                    <button type="submit" id="predict-button" class="accent-button font-bold py-3 px-8 rounded-lg w-full text-lg" disabled>
+                        Analyze Image
+                    </button>
+                </form>
+            </div>
+
+            <!-- View 2: Analysis Results (Initially Hidden) -->
+            <div id="analysis-view" class="hidden">
+                <div class="grid md:grid-cols-2 gap-x-8 gap-y-6 items-start">
+                    <!-- Left Column: Image -->
+                    <div class="w-full">
+                        <h2 class="text-xl font-bold mb-4 text-left">Uploaded Image</h2>
+                        <div class="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center p-2">
+                            <img id="analysis-preview" src="" alt="Uploaded Image Preview" class="max-w-full max-h-80 object-contain rounded-md">
+                        </div>
+                    </div>
+                    <!-- Right Column: Results -->
+                    <div class="w-full">
+                        <h2 class="text-xl font-bold mb-4">Analysis Results</h2>
+                        <div id="loader" class="flex justify-center items-center h-48">
+                            <div class="loader"></div>
+                        </div>
+                        <div id="result-content" class="hidden space-y-6">
+                            <div>
+                                <label class="text-sm font-semibold text-gray-500">PREDICTED DISASTER</label>
+                                <p id="prediction-text" class="font-bold text-2xl text-red-600"></p>
+                            </div>
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-gray-500">MODEL CONFIDENCE</label>
+                                    <span id="confidence-text" class="font-bold text-lg text-gray-800"></span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-4">
+                                    <div id="confidence-bar" class="bg-green-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="border-t border-gray-200 pt-4">
+                               <h3 class="text-sm font-semibold text-gray-500 mb-2">SUGGESTED ACTIONS</h3>
+                               <div id="suggested-actions" class="text-sm space-y-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                 <button id="reset-button" class="mt-8 w-full md:w-auto flex items-center justify-center gap-2 text-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    Analyze Another Image
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            // Main layout elements
+            const mainCard = document.getElementById('main-card');
+            const uploadView = document.getElementById('upload-view');
+            const analysisView = document.getElementById('analysis-view');
+
+            // Upload view elements
+            const uploadForm = document.getElementById('upload-form');
+            const fileInput = document.getElementById('file-input');
+            const fileNameEl = document.getElementById('file-name');
+            const predictButton = document.getElementById('predict-button');
+            const uploadPreview = document.getElementById('upload-preview');
+            const uploadPrompt = document.getElementById('upload-prompt');
+            const fileLabel = document.getElementById('file-label');
+
+            // Analysis view elements
+            const analysisPreview = document.getElementById('analysis-preview');
+            const loader = document.getElementById('loader');
+            const resultContent = document.getElementById('result-content');
+            const predictionText = document.getElementById('prediction-text');
+            const confidenceText = document.getElementById('confidence-text');
+            const confidenceBar = document.getElementById('confidence-bar');
+            const suggestedActions = document.getElementById('suggested-actions');
+            const resetButton = document.getElementById('reset-button');
+
+            let uploadedFile = null;
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    uploadedFile = file;
+                    fileNameEl.textContent = file.name.length > 30 ? `${file.name.substring(0, 27)}...` : file.name;
+                    predictButton.disabled = false;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        uploadPreview.src = event.target.result;
+                        uploadPreview.classList.remove('hidden');
+                        uploadPrompt.classList.add('hidden');
+                        fileLabel.classList.add('p-2');
+                        fileLabel.classList.remove('p-6');
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            uploadForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (!uploadedFile) return;
+
+                // --- 1. Transition to Analysis View ---
+                mainCard.classList.remove('max-w-2xl');
+                mainCard.classList.add('max-w-5xl');
+                uploadView.classList.add('hidden');
+                analysisView.classList.remove('hidden');
+
+                // --- 2. Show Image and Loader ---
+                analysisPreview.src = uploadPreview.src;
+                resultContent.classList.add('hidden');
+                loader.classList.remove('hidden');
+
+                // --- 3. Prepare and Send Request ---
+                const formData = new FormData();
+                formData.append('file', uploadedFile);
+
+                fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayResults(data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayError(error.message);
+                });
+            });
+
+            resetButton.addEventListener('click', () => {
+                // --- Transition back to Upload View ---
+                mainCard.classList.remove('max-w-5xl');
+                mainCard.classList.add('max-w-2xl');
+                analysisView.classList.add('hidden');
+                uploadView.classList.remove('hidden');
+
+                // --- Reset Form State ---
+                uploadedFile = null;
+                uploadForm.reset();
+                predictButton.disabled = true;
+                uploadPreview.classList.add('hidden');
+                uploadPrompt.classList.remove('hidden');
+                fileNameEl.textContent = 'Click to upload an image';
+                fileLabel.classList.remove('p-2');
+                fileLabel.classList.add('p-6');
+
+            });
+            
+            function displayResults(data) {
+                predictionText.textContent = data.prediction;
+                const confidence = parseFloat(data.confidence);
+                confidenceText.textContent = `${confidence.toFixed(1)}%`;
+                
+                setTimeout(() => { confidenceBar.style.width = `${confidence}%`; }, 100);
+
+                confidenceBar.classList.remove('bg-green-500', 'bg-amber-500', 'bg-red-500');
+                if(confidence > 85) {
+                    confidenceBar.classList.add('bg-green-500');
+                } else if (confidence > 70) {
+                    confidenceBar.classList.add('bg-amber-500');
+                } else {
+                    confidenceBar.classList.add('bg-red-500');
+                }
+
+                updateSuggestedActions(data.prediction);
+
+                loader.classList.add('hidden');
+                resultContent.classList.remove('hidden');
+            }
+
+            function displayError(errorMessage) {
+                predictionText.textContent = 'Analysis Failed';
+                confidenceText.textContent = 'N/A';
+                confidenceBar.style.width = '0%';
+                suggestedActions.innerHTML = `<p class="text-red-600">Error: ${errorMessage}. Please try again.</p>`;
+                loader.classList.add('hidden');
+                resultContent.classList.remove('hidden');
+            }
+
+            function updateSuggestedActions(prediction) {
+                let actionsHtml = '';
+                const actions = {
+                    'Wildfire': ['Evacuate area if instructed.', 'Deploy aerial firefighting units.', 'Alert nearby communities.'],
+                    'Flood': ['Deploy water rescue teams.', 'Advise residents to seek higher ground.', 'Monitor water levels.'],
+                    'Earthquake': ['Initiate search and rescue.', 'Assess structural integrity of buildings and infrastructure.', 'Establish emergency shelters.'],
+                    'Cyclone': ['Advise residents to board up windows and secure loose objects.', 'Prepare for storm surge and potential flooding.', 'Establish evacuation routes for coastal areas.']
+                };
+
+                const actionList = actions[prediction] || ['Follow standard emergency protocols.'];
+                
+                actionList.forEach(action => {
+                    actionsHtml += `<div class="flex items-start"><i data-lucide="shield-check" class="w-4 h-4 mr-2 mt-1 text-green-600 flex-shrink-0"></i><span>${action}</span></div>`;
+                });
+
+                suggestedActions.innerHTML = actionsHtml;
+                lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+</html>
